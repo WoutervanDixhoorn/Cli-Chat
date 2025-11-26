@@ -14,7 +14,7 @@ void client_receive_thread(void *arg)
     char receive_buffer[CLIENT_BUFFER_SIZE];
     msock_message result_msg = {
         .buffer = receive_buffer,
-        .size = CLIENT_BUFFER_SIZE
+        .size = sizeof(receive_buffer)
     };
 
     while(msock_client_is_connected(client)) {
@@ -24,7 +24,7 @@ void client_receive_thread(void *arg)
             break;
         }
         
-        printf("\rServer: %s\n> ", result_msg.buffer);
+        printf("\r%s\n> ", result_msg.buffer);
     }
 
     msock_client_close(client);
@@ -50,6 +50,30 @@ bool handle_client_send(msock_client *client)
     return msock_client_send(client, &send_msg); 
 }
 
+bool client_user_handshake(msock_client *client, char *username)
+{
+    msock_message username_msg = {
+        .buffer = username,
+        .len = strlen(username)
+    };
+
+    if(!msock_client_send(client, &username_msg)) return false;
+
+    char success[CLIENT_BUFFER_SIZE];
+    msock_message success_msg = {
+        .buffer = success,
+        .size = sizeof(success)
+    };
+
+    if(!msock_client_receive(client, &success_msg)) return false;
+    
+    if(strcmp(success, "welcome") != 0) return false;
+
+    printf("Handshake was successful!\n");
+
+    return true;
+}
+
 void chat_client_run() 
 {
     printf("Run chat client!\n");
@@ -58,6 +82,18 @@ void chat_client_run()
     msock_client_create(&client);
     msock_client_connect(&client, "127.0.0.1", "420");
 
+    char username[CLIENT_BUFFER_SIZE];
+    printf("Whats your username: ");
+    if(fgets(username, CLIENT_BUFFER_SIZE, stdin) == NULL) goto defer;
+    username[strcspn(username, "\n")] = 0;
+    if (strlen(username) == 0) {
+        printf("Username should be atleast one character\n");
+        goto defer;
+    }
+
+    //Do user handshake
+    if(!client_user_handshake(&client, username)) goto defer;
+
     //Begin thread receive
     _beginthreadex(NULL, 0, (void*)client_receive_thread, &client, 0, NULL);
 
@@ -65,5 +101,6 @@ void chat_client_run()
         if(!handle_client_send(&client)) break;
     }
 
+defer:    
     msock_client_close(&client);
 }

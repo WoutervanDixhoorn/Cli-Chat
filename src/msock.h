@@ -14,6 +14,7 @@ typedef struct msock_client msock_client;
 typedef struct msock_server msock_server;
 
 typedef bool (*msock_on_connect_cb)(msock_client *client);
+typedef bool (*msock_on_disconnect_cb)(msock_client *client);
 typedef bool (*msock_on_client_cb)(msock_server *server, msock_client *client);
 
 typedef enum {
@@ -44,6 +45,8 @@ struct msock_client {
 
     msock_protocol socket_protocol;
     msock_state socket_state;
+
+    void *user_data;
 };
 
 struct msock_server {
@@ -55,6 +58,7 @@ struct msock_server {
     //SOCKET native_client_socket;
     msock_client connected_clients[MSOCK_MAX_CLIENTS];
     msock_on_connect_cb connect_cb;
+    msock_on_disconnect_cb disconnect_cb;
     msock_on_client_cb client_cb;
 };
 
@@ -252,6 +256,7 @@ bool msock_server_close(msock_server *server_socket) {
             success = false;
         }
 
+        if (server_socket->disconnect_cb) server_socket->disconnect_cb(client);
         closesocket(client->native_socket);
 
         client->native_socket = INVALID_SOCKET;
@@ -346,20 +351,21 @@ static void msock_internal_handle_accept(msock_server *server) {
     }
 }
 
-static void msock_internal_handle_clients(msock_server *server, fd_set *readfds) { 
+static void msock_internal_handle_clients(msock_server *server_socket, fd_set *readfds) { 
     for (int i = 0; i < MSOCK_MAX_CLIENTS; i++) {
-        msock_client *client = &server->connected_clients[i];
+        msock_client *client = &server_socket->connected_clients[i];
 
         if (client->socket_state == MSOCK_STATE_CONNECTED && 
             FD_ISSET(client->native_socket, readfds)) {
             
             bool keep_alive = true;
-            if (server->client_cb != NULL) {
-                keep_alive = server->client_cb(server, client);
+            if (server_socket->client_cb != NULL) {
+                keep_alive = server_socket->client_cb(server_socket, client);
             }
 
             if (!keep_alive) {
                 msock_client_close(client);
+                server_socket->disconnect_cb(client);
                 client->socket_state = MSOCK_STATE_DISCONNECTED;
             }
         }
