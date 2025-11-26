@@ -19,7 +19,7 @@ to stimulate its development and mature the library.
 
 ### Usage
 1. Just clone the repo using `git clone https://github.com/WoutervanDixhoorn/Cli-Chat.git`.
-2. * To build the examples just bootstrap the nob.c by compling it one time into nob.exe and just run. To include debug symbols run `.\nob.exe -d`
+2. To build `Cli Chat` just bootstrap the nob.c by compling it one time into nob.exe and just run `nob.exe`. To include debug symbols run `.\nob.exe -d`
 3. Run the `clichat.exe` from the console. To host the server run `clichat.exe -s`.
 
 > **Note:** This application currenly only works on localhost (127.0.0.1) on port 420 as of now. This is changing while the project matures.
