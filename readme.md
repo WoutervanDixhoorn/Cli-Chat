@@ -22,7 +22,7 @@ to stimulate its development and mature the library.
 2. * To build the examples just bootstrap the nob.c by compling it one time into nob.exe and just run. To include debug symbols run `.\nob.exe -d`
 3. Run the `clichat.exe` from the console. To host the server run `clichat.exe -s`.
 
-> **Note:** This application currenly only works on localhost (127.0.0.1) on port 420. This is changing while the project matures.
+> **Note:** This application currenly only works on localhost (127.0.0.1) on port 420 as of now. This is changing while the project matures.
 
 ## References
 * Tsoding (Nobuild): This project makes use of the [Nobuild](https://github.com/tsoding/nobuild) concept by Tsoding. 
