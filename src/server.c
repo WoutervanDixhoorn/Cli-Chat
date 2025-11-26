@@ -58,9 +58,7 @@ bool handle_connect(msock_client *client)
 
 bool handle_disconnect(msock_client *client)
 {
-    printf("handle_disconnect()\n");
-
-    //Free user_data
+    //Free user_data since is malloced
     free(client->user_data);
 
     return true;
@@ -109,6 +107,7 @@ void chat_server_run()
     msock_server_listen(&server, "127.0.0.1", "420");
 
     msock_server_set_connect_cb(&server, handle_connect);
+    msock_server_set_disconnect_cb(&server, handle_disconnect);
     msock_server_set_client_cb(&server, handle_client);
     
     while(msock_server_is_listening(&server)) {

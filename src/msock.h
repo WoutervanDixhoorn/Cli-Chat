@@ -90,6 +90,7 @@ bool msock_server_run(msock_server *server);
 bool msock_server_broadcast(msock_server *server_socket, msock_message *boardcast_msg);
 
 void msock_server_set_connect_cb(msock_server *server_socket, msock_on_connect_cb cb);
+void msock_server_set_disconnect_cb(msock_server *server_socket, msock_on_disconnect_cb cb);
 void msock_server_set_client_cb(msock_server *server_socket, msock_on_client_cb cb);
 
 #ifdef MSOCK_IMPLEMENTATION
@@ -414,6 +415,10 @@ bool msock_server_broadcast(msock_server *server_socket, msock_message *broadcas
 
 void msock_server_set_connect_cb(msock_server *server_socket, msock_on_connect_cb cb) {
     server_socket->connect_cb = cb;
+}
+
+void msock_server_set_disconnect_cb(msock_server *server_socket, msock_on_disconnect_cb cb) {
+    server_socket->disconnect_cb = cb;
 }
 
 void msock_server_set_client_cb(msock_server *server_socket, msock_on_client_cb cb) {
