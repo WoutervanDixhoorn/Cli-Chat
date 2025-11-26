@@ -2,7 +2,7 @@
 
 ![Status](https://img.shields.io/badge/status-development-orange) ![Language](https://img.shields.io/badge/language-C-blue)
 
-**Cli Chat** is a simple console chat application thats being developed alongside [https://github.com/WoutervanDixhoorn/Minimal-Sockets](msock.h). 
+**Cli Chat** is a simple console chat application thats being developed alongside [`msock.h`](https://github.com/WoutervanDixhoorn/Minimal-Sockets). 
 The goal is to learn the fundatmentals of application design in C and have a proper use case for `msock.h`
 to stimulate its development and mature the library.
 
@@ -27,7 +27,7 @@ to stimulate its development and mature the library.
 ## References
 * Tsoding (Nobuild): This project makes use of the [Nobuild](https://github.com/tsoding/nobuild) concept by Tsoding. 
 A huge shoutout to the [Tsoding Daily](https://www.youtube.com/@TsodingDaily) channel. his content inspired me to start learning C for fun!
-* [https://github.com/WoutervanDixhoorn/Minimal-Sockets](Minimal Sockets): This is my own simple project developed parralel from this chat application.
+* [Minimal Sockets](https://github.com/WoutervanDixhoorn/Minimal-Sockets): This is my own simple project developed parralel from this chat application.
 
 ## Note
 * Please if you have any tips or input for the project, feel free to create an issue or a pull request!
