@@ -18,7 +18,7 @@ to stimulate its development and mature the library.
 * GCC/Clang (or any standard C compiler)
 
 ### Usage
-1. Just clone the repo using `git clone ....`.
+1. Just clone the repo using `git clone https://github.com/WoutervanDixhoorn/Cli-Chat.git`.
 2. * To build the examples just bootstrap the nob.c by compling it one time into nob.exe and just run. To include debug symbols run `.\nob.exe -d`
 3. Run the `clichat.exe` from the console. To host the server run `clichat.exe -s`.
 
