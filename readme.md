@@ -2,7 +2,7 @@
 
 ![Status](https://img.shields.io/badge/status-development-orange) ![Language](https://img.shields.io/badge/language-C-blue)
 
-**Cli Chat** is a simple console chat application thats being developed alongside [https://github.com/WoutervanDixhoorn/Minimal-Sockets](`msock.h`). 
+**Cli Chat** is a simple console chat application thats being developed alongside [https://github.com/WoutervanDixhoorn/Minimal-Sockets](msock.h). 
 The goal is to learn the fundatmentals of application design in C and have a proper use case for `msock.h`
 to stimulate its development and mature the library.
 
