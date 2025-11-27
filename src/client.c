@@ -3,7 +3,12 @@
 #include "msock.h"
 
 #include <stdio.h>
-#include <process.h>
+
+#ifdef _WIN32
+    #include <process.h>
+#else
+    #include <pthread.h>
+#endif
 
 #define CLIENT_BUFFER_SIZE 1024
 
@@ -105,12 +110,23 @@ void chat_client_run()
     if(!client_user_handshake(&client, username)) goto defer;
 
     //Begin thread receive
+    
+#ifdef _WIN32
     _beginthreadex(NULL, 0, (void*)client_receive_thread, &client, 0, NULL);
+#else
+    pthread_t receive_thread;
+    pthread_create(&receive_thread, NULL, (void*)client_receive_thread, (void*)&client);
+#endif
 
     while(msock_client_is_connected(&client)) {
         if(!handle_client_send(&client)) break;
     }
 
 defer:    
+
+#ifndef _WIN32
+    pthread_join(receive_thread, NULL);
+#endif
+
     msock_client_close(&client);
 }
