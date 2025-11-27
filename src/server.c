@@ -2,10 +2,6 @@
 
 #include "msock.h"
 
-#ifdef _WIN32
-    #define _CRT_SECURE_NO_WARNINGS
-#endif
-
 #include <stdio.h>
 
 #define SERVER_MAX_BUFFER_SIZE 1024
@@ -58,7 +54,7 @@ bool handle_connect(msock_client *client)
 
 bool handle_disconnect(msock_client *client)
 {
-    //Free user_data since is malloced
+    //Free user_data since its malloced
     free(client->user_data);
 
     return true;
@@ -101,11 +97,25 @@ bool handle_client(msock_server *server, msock_client *client)
 
 void chat_server_run()
 {
-    printf("Run chat server!\n");
+    char server_port[64];
+    printf("What's the port of the chat server: ");
+    if(fgets(server_port, sizeof(server_port), stdin) == NULL) goto defer;
+    server_port[strcspn(server_port, "\n")] = 0;
 
-    msock_server server;
-    msock_server_listen(&server, "127.0.0.1", "420");
+    msock_server server = {0};
+    msock_server_create(&server);
+    if(!msock_server_listen(&server, "0.0.0.0", server_port)) goto defer;
 
+    char local_ip[64] = "Unknown";
+    msock_get_local_ip(local_ip, sizeof(local_ip));
+
+    printf("----------------------------------------\n");
+    printf(" Server Started!\n");
+    printf("----------------------------------------\n");
+    printf(" Tell your friends to connect to:\n");
+    printf(" IP:   %s:%s\n", local_ip, server_port);
+    printf("----------------------------------------\n");
+    
     msock_server_set_connect_cb(&server, handle_connect);
     msock_server_set_disconnect_cb(&server, handle_disconnect);
     msock_server_set_client_cb(&server, handle_client);
@@ -114,5 +124,6 @@ void chat_server_run()
         if(!msock_server_run(&server)) break;
     }
 
+defer:
     msock_server_close(&server);
 }

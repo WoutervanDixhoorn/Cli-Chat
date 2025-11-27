@@ -76,11 +76,21 @@ bool client_user_handshake(msock_client *client, char *username)
 
 void chat_client_run() 
 {
-    printf("Run chat client!\n");
+    char server_addr[64];
+    printf("What's the IP of the chat server: ");
+    if(fgets(server_addr, sizeof(server_addr), stdin) == NULL) goto defer;
+    server_addr[strcspn(server_addr, "\n")] = 0;
 
-    msock_client client;
+    char server_port[64];
+    printf("What's the port of the chat server: ");
+    if(fgets(server_port, sizeof(server_port), stdin) == NULL) goto defer;
+    server_port[strcspn(server_port, "\n")] = 0;
+
+    printf("Trying to connect to %s:%s\n", server_addr, server_port);
+
+    msock_client client = {0};
     msock_client_create(&client);
-    msock_client_connect(&client, "127.0.0.1", "420");
+    if(!msock_client_connect(&client, server_addr, server_port)) goto defer;
 
     char username[CLIENT_BUFFER_SIZE];
     printf("Whats your username: ");

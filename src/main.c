@@ -19,7 +19,6 @@ int main(int argc, char **argv)
 {    
     if(argc > 1) {
         char* arg = argv[1];
-        printf("Arg: %s\n", arg);
         if(strcmp(arg, "-s") == 0) mode = MODE_SERVER;
     }
 

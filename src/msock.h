@@ -70,6 +70,7 @@ typedef struct {
 
 bool msock_init();
 bool msock_deinit();
+bool msock_get_local_ip(char *buffer, size_t buffer_len);
 
 bool msock_client_create(msock_client *client_result);
 bool msock_client_connect(msock_client *client_socket, const char* ip, const char* port);
@@ -94,6 +95,64 @@ void msock_server_set_disconnect_cb(msock_server *server_socket, msock_on_discon
 void msock_server_set_client_cb(msock_server *server_socket, msock_on_client_cb cb);
 
 #ifdef MSOCK_IMPLEMENTATION
+
+//BASE UTIL
+
+bool msock_init() {
+    WSADATA wsa_data;
+
+    int success = WSAStartup(MAKEWORD(2,2), &wsa_data);
+    if(success != 0) {
+        printf("WSAStartup failed: %d\n", success);
+        return false;
+    }
+    
+    return true;
+}
+
+bool msock_deinit() {
+    WSACleanup();
+
+    return true;
+}
+
+bool msock_get_local_ip(char *buffer, size_t buffer_len) {
+    char hostname[256];
+    
+    if (gethostname(hostname, sizeof(hostname)) == -1) {
+        return false;
+    }
+
+    struct addrinfo hints = {0};
+    hints.ai_family = AF_INET;       // We only want IPv4
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_CANONNAME;
+
+    struct addrinfo *result = NULL;
+    
+    if (getaddrinfo(hostname, NULL, &hints, &result) != 0) {
+        return false;
+    }
+
+    struct addrinfo *ptr = NULL;
+    bool found = false;
+
+    for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
+        struct sockaddr_in *sock_addr = (struct sockaddr_in *)ptr->ai_addr;
+        
+        char ip_str[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &sock_addr->sin_addr, ip_str, INET_ADDRSTRLEN);
+
+        if (strcmp(ip_str, "127.0.0.1") != 0) {
+            snprintf(buffer, buffer_len, "%s", ip_str);
+            found = true;
+            break;
+        }
+    }
+
+    freeaddrinfo(result);
+    return found;
+}
 
 //MSOCK_CLIENT Implementations
 
@@ -124,10 +183,11 @@ bool msock_client_connect(msock_client *client_socket, const char* ip, const cha
     bool success = connect(client_socket->native_socket, info->ai_addr, (int)info->ai_addrlen) == 0;
     freeaddrinfo(info);
 
-    if(success) {
-        client_socket->socket_state = MSOCK_STATE_CONNECTED;
+    if(!success) {
+        
     }
 
+    client_socket->socket_state = MSOCK_STATE_CONNECTED;
     return success;
 }
 
@@ -210,8 +270,6 @@ bool msock_server_create(msock_server *server_result) {
 }
 
 bool msock_server_listen(msock_server *server_socket, const char* ip, const char* port) {
-    msock_server_create(server_socket);
-
     u_long mode = 1;
     ioctlsocket(server_socket->native_socket, FIONBIO, &mode); //Always non blocking for now!
 
@@ -423,26 +481,6 @@ void msock_server_set_disconnect_cb(msock_server *server_socket, msock_on_discon
 
 void msock_server_set_client_cb(msock_server *server_socket, msock_on_client_cb cb) {
     server_socket->client_cb = cb;
-}
-
-//BASE UTIL
-
-bool msock_init() {
-    WSADATA wsa_data;
-
-    int success = WSAStartup(MAKEWORD(2,2), &wsa_data);
-    if(success != 0) {
-        printf("WSAStartup failed: %d\n", success);
-        return false;
-    }
-    
-    return true;
-}
-
-bool msock_deinit() {
-    WSACleanup();
-
-    return true;
 }
 
 #endif //MSOCK_IMPLEMTATION
