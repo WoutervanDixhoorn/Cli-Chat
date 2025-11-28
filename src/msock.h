@@ -8,9 +8,17 @@
 
 #ifdef _WIN32
     #include <ws2tcpip.h>
-    #include <winsock.h>
+    #include <winsock2.h>
+    #pragma comment(lib, "ws2_32.lib")
 
+    #ifdef _MSC_VER
+        #include <basetsd.h>
+        typedef SSIZE_T ssize_t;
+    #endif
     typedef int socklen_t;
+
+    #define MSOCK_LAST_ERROR WSAGetLastError()
+    #define MSOCK_IS_WOULDBLOCK(err) ((err) == WSAEWOULDBLOCK)
 #else
     #include <sys/types.h>
     #include <sys/socket.h>
@@ -28,14 +36,14 @@
 
     //Map Functions
     #define closesocket close
-    #define WSAGetLastError() (errno)
-    
-    //Map Constants
-    #define WSAEWOULDBLOCK EWOULDBLOCK
+    #define MSOCK_LAST_ERROR errno
+    #define MSOCK_IS_WOULDBLOCK(err) ((err) == EWOULDBLOCK || (err) == EAGAIN)
+
     #define SD_SEND SHUT_WR 
     #define SD_BOTH SHUT_RDWR
 #endif
 
+#define MAXHOSTNAMELEN 256
 #define MSOCK_MAX_CLIENTS 64
 
 typedef struct msock_client msock_client;
@@ -59,13 +67,6 @@ typedef enum {
     MSOCK_STATE_LISTENING,
     MSOCK_STATE_ACCEPTED
 } msock_state;
-
-typedef enum {
-    MSOCK_SUCCESS,
-    MSOCK_ERROR,
-
-    MSOCK_NO_WORK
-} msock_status;
 
 struct msock_client {
     SOCKET native_socket;
@@ -106,17 +107,16 @@ bool msock_client_is_connected(msock_client *client_socket);
 bool msock_client_close(msock_client *client_socket);
 
 bool msock_client_send(msock_client *client_socket, msock_message *msg);
-bool msock_client_receive(msock_client *client_socket, msock_message *result_msg);
+ssize_t msock_client_receive(msock_client *client_socket, msock_message *result_msg);
 
 bool msock_server_create(msock_server *server_result);
 bool msock_server_listen(msock_server *server_socket, const char* ip, const char* port);
 bool msock_server_is_listening(msock_server *server_socket);
-msock_status msock_server_accept(msock_server *server_socket);
 bool msock_server_close(msock_server *server_socket);
 bool msock_server_close_client(msock_server *server_socket);
 bool msock_server_run(msock_server *server);
 
-bool msock_server_broadcast(msock_server *server_socket, msock_message *boardcast_msg);
+bool msock_server_broadcast(msock_server *server_socket, msock_message *boardcast_msg, msock_client *sender_socket);
 
 void msock_server_set_connect_cb(msock_server *server_socket, msock_on_connect_cb cb);
 void msock_server_set_disconnect_cb(msock_server *server_socket, msock_on_disconnect_cb cb);
@@ -147,14 +147,14 @@ bool msock_deinit() {
 }
 
 bool msock_get_local_ip(char *buffer, size_t buffer_len) {
-    char hostname[256];
+    char hostname[MAXHOSTNAMELEN];
     
     if (gethostname(hostname, sizeof(hostname)) == -1) {
         return false;
     }
 
     struct addrinfo hints = {0};
-    hints.ai_family = AF_INET;       // We only want IPv4
+    hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_CANONNAME;
 
@@ -213,6 +213,8 @@ bool msock_client_create(msock_client *client_result) {
 
 bool msock_client_connect(msock_client *client_socket, const char* ip, const char* port) {
 
+    if(!client_socket || !ip || !port) return false;
+
     struct addrinfo hints = {0};
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
@@ -261,7 +263,7 @@ bool msock_client_send(msock_client *client_socket, msock_message *msg) {
     return true;
 }
 
-bool msock_client_receive(msock_client *client_socket, msock_message *result_msg) {
+ssize_t msock_client_receive(msock_client *client_socket, msock_message *result_msg) {
     if(client_socket->socket_state == MSOCK_STATE_DISCONNECTED) return false;
 
     int bytes_received = recv(client_socket->native_socket, result_msg->buffer, result_msg->size - 1, 0); //NOTE: recv is a blocking function
@@ -269,24 +271,20 @@ bool msock_client_receive(msock_client *client_socket, msock_message *result_msg
     if(bytes_received == 0) {
         printf("Connection closed!\n");
         client_socket->socket_state = MSOCK_STATE_DISCONNECTED;
-        return false;
+        return 0;
     }
 
     if(bytes_received < 0) {
-        int err = WSAGetLastError();
-        if (err == WSAEWOULDBLOCK) {
-            result_msg->len = 0;
-            return true;
-        }
+        if(MSOCK_IS_WOULDBLOCK(MSOCK_LAST_ERROR)) return 0;
 
-        printf("Connection lost: %d\n", err);
         client_socket->socket_state = MSOCK_STATE_DISCONNECTED;
-        return false;
+        return -1;
     }   
     
     result_msg->buffer[bytes_received] = '\0';
     result_msg->len = bytes_received;
-    return true;
+
+    return bytes_received;
 }
 
 //MSOCK_SERVER Implementations
@@ -365,44 +363,6 @@ bool msock_server_close(msock_server *server_socket) {
     closesocket(server_socket->native_socket);
 
     return success;
-}
-
-msock_status msock_server_accept(msock_server *server_socket) {
-    struct sockaddr_in client_addr;
-    socklen_t addr_len = sizeof(client_addr);
-
-    SOCKET native_client = accept(server_socket->native_socket, (struct sockaddr*)&client_addr, &addr_len);
-    
-    if (native_client == INVALID_SOCKET) {
-        int error = WSAGetLastError();
-        if (error == WSAEWOULDBLOCK) {
-            return MSOCK_NO_WORK; 
-        }
-        printf("accept() failed: %d\n", error);
-        return MSOCK_ERROR;
-    }
-
-    int free_slot = -1;
-    for (int i = 0; i < MSOCK_MAX_CLIENTS; i++) {
-        if (server_socket->connected_clients[i].socket_state == MSOCK_STATE_DISCONNECTED) {
-            free_slot = i;
-            break;
-        }
-    }
-
-    if (free_slot == -1) {
-        printf("Server full! Rejecting connection.\n");
-        closesocket(native_client);
-        return MSOCK_ERROR;
-    }
-
-    msock_client *client = &server_socket->connected_clients[free_slot];
-    client->native_socket = native_client;
-    client->socket_state = MSOCK_STATE_CONNECTED;
-
-    inet_ntop(AF_INET, &client_addr.sin_addr, client->ip_addr, INET_ADDRSTRLEN);
-
-    return MSOCK_SUCCESS;
 }
 
 static void msock_internal_handle_accept(msock_server *server) {
@@ -516,11 +476,14 @@ int max_fd = 0;
     return true;
 }
 
-bool msock_server_broadcast(msock_server *server_socket, msock_message *broadcast_msg) {
+bool msock_server_broadcast(msock_server *server_socket, msock_message *broadcast_msg, msock_client *sender_socket) {
 
     for(int i = 0; i < MSOCK_MAX_CLIENTS; i++) {
-        if(server_socket->connected_clients[i].socket_state == MSOCK_STATE_DISCONNECTED) continue;
-    
+        msock_client *client = &server_socket->connected_clients[i];
+        
+        if(client->socket_state == MSOCK_STATE_DISCONNECTED) continue;
+        if(sender_socket != NULL && client == sender_socket) continue;
+
         msock_client_send(&server_socket->connected_clients[i], broadcast_msg);
     }
 

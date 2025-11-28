@@ -24,7 +24,8 @@ void client_receive_thread(void *arg)
 
     while(msock_client_is_connected(client)) {
 
-        if(!msock_client_receive(client, &result_msg)) {
+        ssize_t bytes = msock_client_receive(client, &result_msg);
+        if(bytes < 0) {
             printf("msock_client_receive() failed!\n");
             break;
         }
@@ -70,7 +71,8 @@ bool client_user_handshake(msock_client *client, char *username)
         .size = sizeof(success)
     };
 
-    if(!msock_client_receive(client, &success_msg)) return false;
+    ssize_t bytes = msock_client_receive(client, &success_msg);
+    if(bytes < 0) return false;
     
     if(strcmp(success, "welcome") != 0) return false;
 

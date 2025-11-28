@@ -15,11 +15,14 @@ bool server_user_handshake(msock_client *client)
     char username_buffer[64];
     msock_message username_msg = {
         .buffer = username_buffer,
-        .size = sizeof(username_buffer)
+        .size = sizeof(username_buffer),
+        .len = 0
     };
 
     while(username_msg.len < 1){
-        if(!msock_client_receive(client, &username_msg)) return false;
+        ssize_t bytes = msock_client_receive(client, &username_msg);
+        if(bytes < 0) return false;
+        if(bytes == 0) continue;
     }
 
     if(username_msg.len > 64) return false;
@@ -70,10 +73,13 @@ bool handle_client(msock_server *server, msock_client *client)
         .size = SERVER_MAX_BUFFER_SIZE
     };
 
-    if(!msock_client_receive(client, &result_msg)) {
+    ssize_t bytes = msock_client_receive(client, &result_msg);
+    if(bytes < 0) {
         printf("Client receive failed!\n");
         return false;
     }
+
+    if(bytes == 0) return true;
 
     client_data *data = (client_data*)client->user_data;
     printf("%s: %s\n", data->username, receive_buffer);
@@ -87,7 +93,7 @@ bool handle_client(msock_server *server, msock_client *client)
         .len    = written_len            
     };
 
-    if(!msock_server_broadcast(server, &return_msg)) {
+    if(!msock_server_broadcast(server, &return_msg, client)) {
         printf("Client send failed!\n");
         return false;
     }
