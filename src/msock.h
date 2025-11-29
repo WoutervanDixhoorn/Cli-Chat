@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -29,12 +30,10 @@
     #include <fcntl.h>
     #include <errno.h>
 
-    //Map Types
     #define SOCKET int
     #define INVALID_SOCKET -1
     #define SOCKET_ERROR -1
 
-    //Map Functions
     #define closesocket close
     #define MSOCK_LAST_ERROR errno
     #define MSOCK_IS_WOULDBLOCK(err) ((err) == EWOULDBLOCK || (err) == EAGAIN)
@@ -64,8 +63,7 @@ typedef enum {
     
     MSOCK_STATE_UNBOUND,
     MSOCK_STATE_BOUND,
-    MSOCK_STATE_LISTENING,
-    MSOCK_STATE_ACCEPTED
+    MSOCK_STATE_LISTENING
 } msock_state;
 
 struct msock_client {
@@ -253,16 +251,6 @@ bool msock_client_close(msock_client *client_socket) {
     return success;
 }
 
-bool msock_client_send(msock_client *client_socket, msock_message *msg) {
-    int success = send(client_socket->native_socket, msg->buffer, msg->len, 0);
-    if(success == SOCKET_ERROR) {
-        printf("send() failed: %d\n", WSAGetLastError());
-        return false;
-    }
-
-    return true;
-}
-
 ssize_t msock_client_receive(msock_client *client_socket, msock_message *result_msg) {
     if(client_socket->socket_state == MSOCK_STATE_DISCONNECTED) return false;
 
@@ -285,6 +273,16 @@ ssize_t msock_client_receive(msock_client *client_socket, msock_message *result_
     result_msg->len = bytes_received;
 
     return bytes_received;
+}
+
+bool msock_client_send(msock_client *client_socket, msock_message *msg) {
+    int success = send(client_socket->native_socket, msg->buffer, msg->len, 0);
+    if(success == SOCKET_ERROR) {
+        printf("send() failed: %d\n", WSAGetLastError());
+        return false;
+    }
+
+    return true;
 }
 
 //MSOCK_SERVER Implementations

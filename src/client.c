@@ -53,7 +53,11 @@ bool handle_client_send(msock_client *client)
         .len = strlen(input)
     };
 
-    return msock_client_send(client, &send_msg); 
+    if(!msock_client_send(client, &send_msg)) return false;
+
+    printf("%s\n", input);
+
+    return true;
 }
 
 bool client_user_handshake(msock_client *client, char *username)
@@ -85,12 +89,12 @@ void chat_client_run()
 {
     char server_addr[64];
     printf("What's the IP of the chat server: ");
-    if(fgets(server_addr, sizeof(server_addr), stdin) == NULL) goto defer;
+    if(fgets(server_addr, sizeof(server_addr), stdin) == NULL) return;
     server_addr[strcspn(server_addr, "\n")] = 0;
 
     char server_port[64];
     printf("What's the port of the chat server: ");
-    if(fgets(server_port, sizeof(server_port), stdin) == NULL) goto defer;
+    if(fgets(server_port, sizeof(server_port), stdin) == NULL) return;
     server_port[strcspn(server_port, "\n")] = 0;
 
     printf("Trying to connect to %s:%s\n", server_addr, server_port);
