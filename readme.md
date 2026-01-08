@@ -25,7 +25,7 @@ to stimulate its development and mature the library.
 2. To build `Cli Chat` just bootstrap the nob.c by compling it one time into nob.exe and just run `nob.exe`. To include debug symbols run `.\nob.exe -d`
 3. Run the `clichat.exe` from the console. To host the server run `clichat.exe -s`.
 
->note ** 
+> **Note:** This application does not work on Linux as of now, this is because the *Minimal Console* library is not ported to Linux yet. *Minimal Sockets* works on Linux as of now!  
 
 ## References
 * Tsoding (Nobuild): This project makes use of the [Nobuild](https://github.com/tsoding/nobuild) concept by Tsoding. 
