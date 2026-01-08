@@ -5,8 +5,11 @@
 #define MSOCK_IMPLEMENTATION
 #include "msock.h"
 
-#include "client.h"
-#include "server.h"
+#define MCONSOLE_IMPLEMENTATION
+#include "mconsole.h"
+
+#include "client/client.h"
+#include "server/server.h"
 
 typedef enum {
     MODE_CLIENT = 0,

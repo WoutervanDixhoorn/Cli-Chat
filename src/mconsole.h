@@ -3,8 +3,15 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdarg.h>
 
 #include <Windows.h>
+
+#define DBG_MAX_LOGS 5
+#define DBG_MAX_LEN  128
+
+static char debug_history[DBG_MAX_LOGS][DBG_MAX_LEN];
+static int debug_head = 0; // Points to the next write slot
 
 typedef struct {
     char ch;
@@ -41,6 +48,9 @@ typedef enum {
     MCONSOLE_ALIGN_BOTTOM,
 } mconsole_align;
 
+void mconsole_debug_log(const char *fmt, ...);
+void mconsole_draw_debug_overlay(mconsole_context *ctx) ;
+
 bool mconsole_init(mconsole_context *context);
 bool mconsole_deinit(mconsole_context *context);
 
@@ -54,13 +64,54 @@ mconsole_rect mconsole_cut_right(mconsole_rect *rect, int amount);
 mconsole_rect mconsole_cut_top(mconsole_rect *rect, int amount);
 mconsole_rect mconsole_cut_bottom(mconsole_rect *rect, int amount);
 mconsole_rect mconsole_shrink(mconsole_rect *rect, int amount);
+mconsole_rect mconsole_rect_centered(mconsole_rect parent, int w, int h);
 
 void mconsole_put_cell(mconsole_context *context, int x, int  y, char ch);
 void mconsole_draw_border(mconsole_context *context, mconsole_rect rect);
 void mconsole_text_box(mconsole_context *context, mconsole_rect rect, char* text, bool text_wrap, mconsole_align align);
 bool mconsole_input_field(mconsole_context *context, mconsole_rect rect, char* input_buffer, int buffer_len);
 
+void mconsole_ui_spacer(mconsole_rect *rect, int amount);
+bool mconsole_ui_labeld_input(mconsole_context *context, mconsole_rect *rect, char* label, char* input_buffer, int buffer_len, bool active);
+
 #ifdef MCONSOLE_IMPLEMENTATION
+
+void mconsole_debug_log(const char *fmt, ...) 
+{
+    va_list args;
+    va_start(args, fmt);
+
+    vsnprintf(debug_history[debug_head], DBG_MAX_LEN, fmt, args);
+
+    va_end(args);
+
+    debug_head = (debug_head + 1) % DBG_MAX_LOGS;
+}
+
+void mconsole_draw_debug_overlay(mconsole_context *ctx) 
+{
+    mconsole_rect screen = mconsole_screen_rect(ctx);
+    
+    mconsole_rect log_window = { 
+        .x = 0, 
+        .y = screen.h - (DBG_MAX_LOGS + 2), 
+        .w = 60, 
+        .h = DBG_MAX_LOGS + 2 
+    };
+
+    mconsole_draw_border(ctx, log_window);
+    mconsole_rect content = mconsole_shrink(&log_window, 1);
+
+    for (int i = 0; i < DBG_MAX_LOGS; i++) {
+        
+        int idx = (debug_head + i) % DBG_MAX_LOGS;
+
+        if (debug_history[idx][0] != '\0') {
+            mconsole_rect line = mconsole_cut_top(&content, 1);
+            mconsole_text_box(ctx, line, debug_history[idx], false, MCONSOLE_ALIGN_LEFT);
+        }
+    }
+}
 
 bool mconsole_init(mconsole_context *context) {
     HANDLE h_console = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -229,16 +280,12 @@ mconsole_rect mconsole_screen_rect(mconsole_context *context) {
 }
 
 mconsole_rect mconsole_cut_left(mconsole_rect *rect, int amount) {
-    mconsole_rect slice = {
-        .x = rect->x,
-        .y = rect->y,
-        .w = amount,
-        .h = rect->h
-    };
-
-    rect->x += (amount - 1); 
-    rect->w -= (amount - 1); 
-
+    mconsole_rect slice = *rect;
+    slice.w = amount;
+    
+    rect->x += amount;
+    rect->w -= amount;
+    
     return slice;
 }
 
@@ -254,16 +301,12 @@ mconsole_rect mconsole_cut_right(mconsole_rect *rect, int amount) {
 }
 
 mconsole_rect mconsole_cut_top(mconsole_rect *rect, int amount) {
-    mconsole_rect slice = {
-        .x = rect->x,
-        .y = rect->y,
-        .w = rect->w,
-        .h = amount
-    };
-
-    rect->y += (amount - 1);
-    rect->h -= (amount - 1);
-
+    mconsole_rect slice = *rect;
+    slice.h = amount;
+    
+    rect->y += amount;
+    rect->h -= amount;
+    
     return slice;
 }
 
@@ -285,6 +328,15 @@ mconsole_rect mconsole_shrink(mconsole_rect *rect, int amount) {
         .w = rect->w - (amount * 2),
         .h = rect->h - (amount * 2)
     };
+}
+
+mconsole_rect mconsole_rect_centered(mconsole_rect parent, int w, int h) {
+    mconsole_rect r;
+    r.x = parent.x + (parent.w - w) / 2;
+    r.y = parent.y + (parent.h - h) / 2;
+    r.w = w;
+    r.h = h;
+    return r;
 }
 
 void mconsole_put_cell(mconsole_context *context, int x, int  y, char ch) {
@@ -387,6 +439,25 @@ bool mconsole_input_field(mconsole_context *context, mconsole_rect rect, char* i
     }
 
     return enter_pressed;
+}
+
+void mconsole_ui_spacer(mconsole_rect *rect, int amount) {
+    if(amount < 1) return;
+
+    mconsole_cut_top(rect, amount);
+}
+
+bool mconsole_ui_labeld_input(mconsole_context *context, mconsole_rect *rect, char* label, char* input_buffer, int buffer_len, bool active) {
+    mconsole_rect row_rect = mconsole_cut_top(rect, 1);
+
+    int width = strlen(label) + 1;
+    mconsole_rect label_rect = mconsole_cut_left(&row_rect, width); // Have this adjustable
+    mconsole_text_box(context, label_rect, label, false, MCONSOLE_ALIGN_LEFT);
+    
+    if (active) return mconsole_input_field(context, row_rect, input_buffer, buffer_len);
+
+    mconsole_text_box(context, row_rect, input_buffer, true, MCONSOLE_ALIGN_LEFT);
+    return false;
 }
 
 #endif //MCONSOLE_IMPLEMENTATION

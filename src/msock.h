@@ -252,7 +252,7 @@ bool msock_client_close(msock_client *client_socket) {
 }
 
 ssize_t msock_client_receive(msock_client *client_socket, msock_message *result_msg) {
-    if(client_socket->socket_state == MSOCK_STATE_DISCONNECTED) return false;
+    if(client_socket->socket_state == MSOCK_STATE_DISCONNECTED) return -1;
 
     int bytes_received = recv(client_socket->native_socket, result_msg->buffer, result_msg->size - 1, 0); //NOTE: recv is a blocking function
 
